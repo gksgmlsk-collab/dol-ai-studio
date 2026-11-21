@@ -1,0 +1,17 @@
+.local/
+.openai/
+.codex/
+.env
+.env.*
+*.sqlite*
+*.db
+*.db-wal
+*.db-shm
+*.safetensors
+*.gguf
+*.pem
+*.key
+first-teacher.txt
+first-operator.txt
+node_modules/
+qa-*

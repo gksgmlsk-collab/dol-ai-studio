@@ -1,0 +1,95 @@
+import assert from 'node:assert/strict';
+import {mkdtempSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {createServer} from 'node:http';
+import {once} from 'node:events';
+// This loopback fixture verifies the model protocol and attribution. It never generates a real assessment.
+let proposalQuote='그늘을 더 많이 만들자';
+const modelFixture=createServer(async(q,r)=>{
+  let body='';for await(const chunk of q)body+=chunk;
+  const data=q.url==='/api/tags'?{models:[{name:'class-fixture',details:{family:'test'}}]}:
+    q.url==='/api/show'?{capabilities:['completion']}:
+    q.url==='/api/chat'?{message:{content:JSON.stringify({note:'그늘을 선택한 결정을 적었다.',quote:proposalQuote,nextQuestion:'어떤 점을 비교할 수 있을까요?'})}}:null;
+  r.writeHead(data?200:404,{'Content-Type':'application/json'});r.end(JSON.stringify(data));
+});
+modelFixture.listen(0,'127.0.0.1');await once(modelFixture,'listening');
+process.env.THINKING_LAB_OLLAMA_PORT=process.env.THINKING_LAB_COMFY_PORT=String(modelFixture.address().port);
+process.env.THINKING_LAB_CHAT_MODEL='class-fixture';
+const {createSchool}=await import('./school.mjs');
+const dir=mkdtempSync(join(tmpdir(),'dol-class-check-')),secret='temporary-'+crypto.randomUUID();
+const operatorSecret='op-'+crypto.randomUUID();
+let service=createSchool({dataDir:dir,bootstrapSecret:secret,operatorSecret});
+const http=createServer((q,r)=>service.handle(q,r,new URL(q.url,'http://localhost')));http.listen(0,'127.0.0.1');await once(http,'listening');
+const prefix='http://127.0.0.1:'+http.address().port+'/api/school/';
+async function call(cookie,method,path,data,expected=200){
+  const res=await fetch(prefix+path,{method,headers:{cookie:cookie||'','Content-Type':'application/json'},body:data===undefined?undefined:JSON.stringify(data)});
+  const raw=await res.text();assert.equal(res.status,expected,method+' '+path+' '+raw.slice(0,150));
+  return {body:res.headers.get('content-type')?.includes('json')?JSON.parse(raw):raw,cookie:res.headers.get('set-cookie')?.split(';')[0]};
+}
+const get=async(c,p,n=200)=>(await call(c,'GET',p,undefined,n)).body,post=async(c,p,b,n=201)=>(await call(c,'POST',p,b,n)).body;
+const login=async(login,secret,classCode)=>(await call('','POST','login',{login,secret,classCode})).cookie;
+try{
+  const t=await login('teacher',secret);const cl=await post(t,'classes',{name:'실험 교실'}),other=await post(t,'classes',{name:'다른 학급'});
+  const createStudent=async(c,n)=>{const u=await post(t,'classes/'+c.id+'/students',{name:n});u.cookie=await login(u.login,u.secret,c.code);return u;};
+  const a=await createStudent(cl,'파랑'),b=await createStudent(cl,'노랑'),c=await createStudent(other,'초록');
+  await post('','login',{login:a.login,secret:b.secret,classCode:cl.code},401);
+  const assignment=await post(t,'classes/'+cl.id+'/assignments',{title:'미래 동네',goal:'생활 속 불편 탐구',tools:['dialogue','image','robot'],quota:1,help:'힌트와 예시'});
+  const team=await post(t,'classes/'+cl.id+'/teams',{name:'기어 모둠',members:[a.id,b.id]});
+  const create=async(cookie,title,teamId)=>post(cookie,'projects',{title,classId:cl.id,assignmentId:assignment.id,teamId});
+  const solo=await create(a.cookie,'미래 도시 영상'),group=await create(b.cookie,'경과 시간 모형 스위치',team.id);
+  let p='projects/'+solo.id;await get(b.cookie,p,404);await get(c.cookie,p,404);await get('',p,401);await post(b.cookie,'classes',{name:'사칭'},403);
+  await call(a.cookie,'PATCH',p,{title:'미래 도시',revision:0,draft:{goal:'차 없는 길',plan:'그늘 → 보행자 → 길',prediction:'걷기 편함',reason:'안전함'}});
+  await call(a.cookie,'PATCH',p,{title:'충돌',revision:0,draft:{}},409);
+  const rec=await post(a.cookie,p+'/records',{kind:'결정',source:'학생',body:'그늘을 더 많이 만들자'});
+  const artwork=await post(a.cookie,p+'/assets',{kind:'image',title:'공원 이미지',description:'내 그림',mime:'image/png',filename:'공원.png',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/8/8AAAAASUVORK5CYII='});
+  const same={kind:'note',title:'스토리보드',description:'수정한 장면 목록',clientKey:'board-v1'};const first=await post(a.cookie,p+'/assets',same);const retried=await post(a.cookie,p+'/assets',same,200);assert.equal(first.id,retried.id);await post(a.cookie,p+'/assets',{...same,description:'다른 자료'},409);
+  const v1=await post(a.cookie,p+'/versions',{revision:1,reason:'첫 그림'});
+  await post(b.cookie,p+'/versions',{revision:2},404);
+  const f=await post(t,p+'/feedback',{versionId:v1.id,recordId:rec.id,body:'보행자의 자리를 어떻게 확인했나요?'});
+  await post(a.cookie,p+'/respond',{feedbackId:f.id,status:'일부 반영했어요',reason:'길 너비를 키웠어요.'});
+  const obs=await post(t,p+'/observations',{versionId:v1.id,recordId:rec.id,state:'확인',axis:'근거를 들어 비교·선택',note:'그늘을 근거로 재료 선택',nextQuestion:'무엇을 비교했나요?'});
+  assert.ok(obs.id);assert.equal((await get(a.cookie,p)).observations.length,0);
+  const proof={axis:'근거를 들어 비교·선택',recordId:rec.id};
+  await post(a.cookie,p+'/observation-drafts',proof,403);await post(t,p+'/observation-drafts',{axis:proof.axis},400);
+  const suggestion=await post(t,p+'/observation-drafts',proof);assert.equal(suggestion.quote,proposalQuote);
+  const adjusted={...proof,state:'확인',support:true,note:'교사가 다시 읽고 고친 기록',nextQuestion:suggestion.nextQuestion,draftId:suggestion.id};
+  await post(t,p+'/observations',{...adjusted,versionId:v1.id},400);await post(t,p+'/observations',adjusted);
+  assert.ok((await get(t,p)).observations.some(o=>o.model==='class-fixture'&&o.note!==o.proposal));
+  proposalQuote='근거에 없는 문장';await post(t,p+'/observation-drafts',proof,422);
+  await call(a.cookie,'PATCH',p,{title:'미래 도시',revision:2,draft:{goal:'차 없는 길',plan:'더 넓은 보행로',actual:'휠체어가 지나갔어요'}});
+  const v2=await post(a.cookie,p+'/versions',{revision:3,reason:'길 너비 재시험'});
+  const restore=await post(a.cookie,p+'/versions',{revision:4,restoreId:v1.id,reason:'기존 그림 다시 실험'});assert.equal(restore.n,3);
+  const e=await post(a.cookie,p+'/exhibits',{versionId:v2.id,title:'보행자를 위한 도시',description:'넓어진 길',stage:'새 버전',assetIds:[artwork.id],remix:true});
+  await get(b.cookie,'gallery/'+e.id,404);await get(b.cookie,'gallery/'+e.id+'/asset/'+artwork.id,404);
+  await post(b.cookie,'gallery/'+e.id+'/moderate',{status:'approved'},403);
+  await post(t,'gallery/'+e.id+'/moderate',{status:'approved'},200);
+  assert.ok((await get(b.cookie,'gallery')).some(x=>x.id===e.id));assert.equal((await get(c.cookie,'gallery')).length,0);
+  await get(c.cookie,'gallery/'+e.id,404);let shown=await get(b.cookie,'gallery/'+e.id);assert.ok(!JSON.stringify(shown).includes('그늘을 더 많이'));assert.equal(shown.displayName,'우리 반 창작자');
+  await get(b.cookie,'gallery/'+e.id+'/asset/'+artwork.id);await get(b.cookie,p+'/asset/'+artwork.id,404);
+  await post(b.cookie,'gallery/'+e.id+'/feedback',{kind:'궁금해요',body:'비 오는 날은?',public:false});
+  assert.equal((await get(b.cookie,'gallery/'+e.id)).comments.length,0);
+  const remix=await post(b.cookie,'gallery/'+e.id+'/remix',{change:'비 피할 곳을 더해요'});assert.equal((await get(b.cookie,'projects/'+remix.id)).origin.exhibitId,e.id);
+  await post(t,'gallery/'+e.id+'/moderate',{status:'revoked'},200);await get(b.cookie,'gallery/'+e.id,404);await post(b.cookie,'gallery/'+e.id+'/remix',{},404);
+  p='projects/'+group.id;await get(a.cookie,p);await get(c.cookie,p,404);
+  const priv=await post(a.cookie,p+'/records',{kind:'기여',source:'학생',body:'나만의 고민',personal:true});
+  await post(b.cookie,p+'/records',{kind:'시험',source:'학생',body:'시뮬레이션 10초에 누름, 실제 장비 미검증'});
+  assert.ok(!(await get(b.cookie,p)).records.some(r=>r.id===priv.id));assert.ok((await get(t,p)).records.some(r=>r.id===priv.id));
+  const sv=await post(a.cookie,p+'/versions',{revision:0,reason:'모형 시뮬레이션'});assert.ok(!(await get(b.cookie,p)).versions[0].snapshot.recordIds.includes(priv.id));
+  const privateF=await post(t,p+'/feedback',{versionId:sv.id,recordId:priv.id,body:'개인 질문'});assert.ok(!(await get(b.cookie,p)).feedback.some(f=>f.id===privateF.id));
+  const exportDoc=await post(t,'classes/'+cl.id+'/export',{projectIds:[solo.id,group.id],approved:true,includeObservations:true},200);
+  const dash=await get(t,'classes/'+cl.id);assert.equal(dash.support[0].quote,'그늘을 더 많이 만들자');assert.ok(dash.changes.some(o=>o.versionId===v2.id));
+  assert.deepEqual(exportDoc.analysisModels,['class-fixture']);assert.equal(exportDoc.projects.length,2);assert.ok(!JSON.stringify(exportDoc).includes(a.id));assert.ok(!JSON.stringify(exportDoc).includes('나만의 고민'));
+  const fakeReq={headers:{cookie:a.cookie}},held=service.reserveGeneration(fakeReq,solo.id,'image');assert.ok(held);assert.throws(()=>service.reserveGeneration(fakeReq,solo.id,'image'));service.completeGeneration(held,'real-id');assert.ok(service.authorizeJob(fakeReq,'real-id'));assert.throws(()=>service.authorizeJob({headers:{cookie:b.cookie}},'real-id'));assert.throws(()=>service.authorizeGeneration(fakeReq,solo.id,'video'));assert.equal(service.authorizeGeneration(fakeReq,solo.id,'dialogue').help,'힌트와 예시');
+  const op=await login('operator',operatorSecret);
+  await get(t,'ops',403);await get(a.cookie,'ops',403);await get(op,'projects/'+solo.id,404);await get(op,'classes/'+cl.id,404);
+  const stats=await get(op,'ops');assert.ok(!JSON.stringify(stats).includes('그늘'));assert.equal(stats.counts.classes,2);
+  const staff=await post(op,'ops/teachers',{name:'다른 교사'});const otherTeacher=await login(staff.login,staff.secret);
+  await get(otherTeacher,'projects/'+solo.id,404);await post(otherTeacher,'classes/'+cl.id+'/export',{approved:true,projectIds:[solo.id]},404);
+  await post(op,'ops/tools',{tools:['dialogue','image','3d']},200);assert.throws(()=>service.authorizeGeneration(fakeReq,solo.id,'robot'));
+  await post(op,'ops/tools',{tools:['dialogue','image','video','web','3d','robot']},200);
+  const newPass='fresh-test-'+crypto.randomUUID();await post(otherTeacher,'account/password',{current:staff.secret,next:newPass},200);
+  await get(otherTeacher,'ops',401);await post('','login',{login:staff.login,secret:staff.secret},401);assert.ok(await login(staff.login,newPass));
+  service.close();service=createSchool({dataDir:dir,bootstrapSecret:secret});assert.equal((await get(a.cookie,'projects/'+solo.id)).versions.length,3);
+  console.log('PASS: class assignment, student identity, groups, privacy, immutable restore, scoped feedback, gallery moderation, remix, pseudonymous export, quota, durable reboot');
+}finally{http.close();modelFixture.close();service.close();}

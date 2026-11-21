@@ -1,0 +1,15 @@
+**
+!Dockerfile
+!server.mjs
+!server/
+!server/*.mjs
+!server/school-schema.sql
+!dist/
+!dist/**
+server/*-test.mjs
+**/.env*
+**/*.sqlite*
+**/first-teacher.txt
+**/first-operator.txt
+**/*.pem
+**/*.key

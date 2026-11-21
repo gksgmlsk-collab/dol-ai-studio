@@ -1,0 +1,5 @@
+export const demoImage='./assets/paper-boat.png';
+export const demoVideo='./assets/paper-boat.webm';
+const still='연한 하늘색 호수 한가운데에 노란 종이배 한 척이 떠 있어요. 그림책의 수채화처럼 맑은 낮 풍경이에요.';
+export const motionPrompt='노란 종이배가 맑은 호수 위를 천천히 오른쪽으로 떠가요. 배 뒤로 작은 잔물결이 퍼지고 카메라는 고정되어 있어요.';
+export function showDemo(el,start){el.innerHTML='<div class="dol-page"><a class="dol-back" href="#workshop">← 영상·이미지 공방</a><h1>노란 종이배의 여행</h1><p class="dol-intro">이 PC에서 만든 예시로, 내가 적은 말과 모델이 만들어 낸 장면을 비교해 보세요.</p><div class="dol-choice"><img src="'+demoImage+'" alt="파란 호수에 떠 있는 노란 종이배의 실제 생성 이미지"><div><h2>첫 프레임</h2><p>'+still+'</p><small>Stable Diffusion 1.5 · 768 × 512</small><h2>움직임 프롬프트</h2><p>'+motionPrompt+'</p><button class="dol-primary">이 그림으로 내 영상 실험하기 →</button></div></div>'+(demoVideo?'<section class="dol-output"><h2>이 그림에서 생성한 영상</h2><video controls playsinline preload="metadata" poster="'+demoImage+'" src="'+demoVideo+'"></video><p>LTX-Video 2B · WebM</p><p>배의 움직임과 물결을 보세요. 프롬프트에서 예상한 것과 어떻게 같거나 다른가요?</p></section>':'')+'</div>';el.querySelector('button').onclick=()=>start('video',{title:'노란 종이배의 여행',sourceImageId:'dol-example-boat',prompt:motionPrompt});}

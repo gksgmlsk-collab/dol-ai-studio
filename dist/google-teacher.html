@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>교사 Google 로그인 · 돌 AI 창작연구소</title>
+  <link rel="stylesheet" href="/google-teacher.css">
+  <script type="module" src="/google-teacher.mjs"></script>
+</head><body>
+<main>
+  <a class="back" href="/#join">← 수업 참여</a>
+  <section aria-labelledby="title">
+    <p class="brand">돌 AI 창작연구소</p>
+    <h1 id="title">교사 Google 로그인</h1>
+    <p id="intro">초대받거나 연결한 Google 계정으로 교실을 열어요.</p>
+    <form id="link-form" hidden>
+      <label for="password">현재 교사 비밀번호</label>
+      <input id="password" type="password" autocomplete="current-password" maxlength="128" required>
+      <button type="submit">비밀번호 확인하고 Google 계정 선택</button>
+    </form>
+    <div id="google-button"></div>
+    <p role="status" aria-live="polite" id="status">학교 서버의 로그인 설정을 확인하고 있어요.</p>
+    <button id="retry" type="button" hidden>다시 시작하기</button>
+    <a class="local" href="/#join">교사 아이디로 로그인</a>
+  </section>
+</main>
+</body></html>

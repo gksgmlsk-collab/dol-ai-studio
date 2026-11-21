@@ -1,0 +1,64 @@
+.teacher-live {
+  max-width: 1130px;
+  margin: 0 auto 32px;
+  color: #263e2d;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.teacher-live [hidden] { display:none !important; }
+.teacher-live :is(h1,h2,p,ol) { margin:0; }
+.teacher-live a { color:#255535; }
+.tl-heading, .tl-bar, .tl-panel > header, .tl-connection {
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+}
+.tl-heading { margin:3px 0 20px; }
+.tl-heading h1 { font-size:clamp(2rem,4vw,2.65rem); line-height:1.2; letter-spacing:-.07em; }
+.tl-heading a,.tl-action,.teacher-live .tl-retry {
+  display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border:1px solid #becdb8; border-radius:8px;
+  background:#fffdf7; color:#2c5136; font:inherit; font-size:.92rem; font-weight:650; text-decoration:none; cursor:pointer;
+}
+.tl-bar { background:#edf2e7; border:1px solid #d4ddcb; border-radius:15px; padding:12px 18px; margin-bottom:18px; }
+.tl-bar label { display:flex; align-items:center; flex-wrap:wrap; gap:9px; font-size:.92rem; font-weight:700; min-width:0; }
+.tl-bar select { max-width:100%; min-height:37px; padding:5px 26px 5px 10px; border:1px solid #aebfa6; border-radius:7px; background:#fffef9; color:#233f2a; font:inherit; }
+.tl-connection { justify-content:flex-start; gap:9px; font-size:.86rem; color:#495e4c; }
+.tl-connection [data-tl-status] { font-weight:650; }
+.tl-connection .has-error { color:#8c4715; }
+.tl-connection [data-tl-clock] { min-width:0; }
+.teacher-live .tl-retry:disabled { opacity:.55; cursor:wait; }
+.tl-panel,.tl-message { margin:16px 0; padding:clamp(15px,2.2vw,25px); border:1px solid #d8ddcc; border-radius:16px; background:#fffdf8; }
+.tl-message > :not(:first-child) { margin-top:12px; }
+.tl-panel h2 { font-size:clamp(1.15rem,2vw,1.38rem); letter-spacing:-.04em; }
+.tl-panel [data-tl-count] { font-size:.91rem; font-weight:650; color:#315b3a; }
+.tl-panel .tl-help { margin:5px 0 15px; color:#526450; font-size:.88rem; word-break:keep-all; }
+.tl-table { width:100%; border-collapse:collapse; table-layout:fixed; text-align:left; }
+.tl-table thead { background:#f3f5ed; color:#56654c; font-size:.85rem; }
+.tl-table th,.tl-table td { padding:10px 8px; vertical-align:top; }
+.tl-table th:first-child { width:19%; }
+.tl-table th:nth-child(2) { width:26%; }
+.tl-table th:nth-child(3) { width:22%; }
+.tl-table tbody tr+tr,.tl-events li+li { border-top:1px solid #dfe4d6; }
+.tl-table .tl-name { display:block; font-size:1rem; }
+.tl-presence { display:inline-flex; align-items:center; gap:6px; color:#607064; font-size:.79rem; font-weight:500; }
+.tl-presence::before { width:7px; height:7px; border-radius:50%; background:#95a196; content:""; }
+.tl-presence.is-online { color:#31663b; }
+.tl-presence.is-online::before { background:#3b8546; }
+.tl-table td,.tl-events li { font-size:.92rem; }
+.tl-table td strong,.tl-table small,.tl-table .tl-project { display:block; }
+.tl-table small,.tl-events small,.tl-muted,.tl-empty { color:#59685a; }
+.tl-panel .tl-empty { padding:15px 0 5px; }
+.tl-project { text-underline-offset:2px; font-weight:600; }
+.tl-events { padding:0; list-style:none; max-height:29rem; overflow:auto; }
+.tl-events li { display:grid; grid-template-columns:minmax(0,.85fr) minmax(0,1fr) auto; gap:12px; align-items:baseline; padding:10px 1px; }
+.tl-events li>div { display:flex; flex-wrap:wrap; gap:4px 7px; align-items:baseline; }
+.tl-events time { color:#59685a; font-size:.87rem; }
+.teacher-live :is(a,button,select):focus-visible { outline:3px solid #a46221; outline-offset:3px; }
+@media(max-width:650px) {
+  .tl-bar { align-items:flex-start; padding:12px; }
+  .tl-connection { width:100%; }
+  .tl-table,.tl-table tbody { display:block; }
+  .tl-table thead { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+  .tl-table tbody tr { display:grid; grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr); gap:5px 10px; padding:10px 0; }
+  .tl-table tbody th:first-child,.tl-table tbody td { width:auto; padding:1px 0; }
+  .tl-table tbody td::before { content:attr(data-title); display:block; margin-bottom:1px; font-size:.76rem; color:#59685a; }
+  .tl-events li { grid-template-columns:1fr; gap:1px; }
+}
